@@ -24,6 +24,18 @@ class Tile
     Tile.new(tile_id, rows)
   end
 
+  def self.from_tile_map(tile_map)
+    tile_size = tile_map[0][0].rows.length
+    rows = []
+    tile_map.map.each do |map_row|
+      (0...tile_size).each do |y|
+        rows << map_row.map { |tile| tile.rows[y] }.join
+      end
+    end
+
+    Tile.new(0, rows)
+  end
+
   def try_attaching!(other)
     edges.each do |dir, edge|
       other.edges.each do |other_dir, other_edge|
@@ -95,6 +107,11 @@ class Tile
     end
   end
 
+  def remove_border!
+    @rows = @rows[1..-2]
+    @rows.map! { |row| row[1..-2] }
+  end
+
   def edges
     {
       :n => @rows.first,
@@ -102,6 +119,39 @@ class Tile
       :w => @rows.map { |row| row[0] }.join,
       :e => @rows.map { |row| row[-1] }.join
     }
+  end
+
+  def width
+    @rows.first.length
+  end
+
+  def height
+    @rows.length
+  end
+
+  def count_occurrences(other)
+    num_occurrences = 0
+    (0..(width - other.width)).each do |x|
+      (0..(height - other.height)).each do |y|
+        nope = false
+        (0...other.width).each do |ox|
+          (0...other.height).each do |oy|
+            char = other.rows[oy][ox]
+            if char != ' ' && @rows[y + oy][x + ox] != char
+              nope = true
+              break
+            end
+          end
+          break if nope
+        end
+        num_occurrences += 1 unless nope
+      end
+    end
+    num_occurrences
+  end
+
+  def count_chars(char)
+    @rows.join.count(char)
   end
 end
 
@@ -157,9 +207,49 @@ tiles.each do |_, tile|
 
   tile_map[tile.position[1]] ||= []
   tile_map[tile.position[1]][tile.position[0]] = tile
+
+  tile.remove_border!
 end
 
-puts tile_map.map { |row| row.map(&:id).join("\t") }
+picture = Tile.from_tile_map(tile_map)
+
+sea_monster = Tile.new(0, [
+  '                  # ',
+  '#    ##    ##    ###',
+  ' #  #  #  #  #  #   '
+])
+
+counts = []
+
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.flip_horizontally!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.flip_vertically!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+picture.rotate_cw!
+counts << picture.count_occurrences(sea_monster)
+
+num_sea_monsters = counts.max
+
+water_roughness = picture.count_chars('#') - num_sea_monsters * sea_monster.count_chars('#')
+
+p water_roughness
 
 __END__
 Tile 2411:
